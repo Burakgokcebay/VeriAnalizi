@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Survey Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+	<link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+
+
+    <style>
+	        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #3A6EA5, #7F9ACF); /* Arka plan gradyanı */
+            font-family: 'Arial', sans-serif;
+            color: #fff;
+        }
+		
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 30px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            color: #333;
+        }
+
+        .card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .form-select, .btn {
+            border-radius: 5px;
+            height: 50px;
+            font-size: 16px;
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #473c8b, #836fff);
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: linear-gradient(90deg, #7F9ACF, #3A6EA5);
+            color: white;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+			
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .icon {
+            font-size: 40px;
+            color: #3A6EA5;
+            margin-bottom: 20px;
+        }
+
+        .logo-left, .logo-right {
+            position: fixed;
+            top: 10px;
+            z-index: 1000; /* Sayfanın üzerinde kalması için */
+        }
+		        .logo-left {
+            left: 10px;
+        }
+
+        .logo-right {
+            right: 10px;
+        }
+
+        .logo-left img, .logo-right img {
+            height: 50px; /* Logoların yüksekliğini ayarlayın */
+        }
+
+        .table th {
+            background-color: #000080;
+            color: #b0e0e6;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            border-radius: 8px;
+			
+        }
+		
+        .table-container { max-height: 400px; overflow-y: auto; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); border-radius: 12px; }
+        #map { height: 450px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }
+        .table th { background-color: #000080; color: #b0e0e6; text-align: center; font-size: 14px; }
+        .btn-primary { border-radius: 8px; }
+		    .btn-link {
+        text-decoration: none;
+        font-weight: bold;
+        color: #007bff;
+    }
+	    .btn-link:hover {
+        text-decoration: underline;
+            color: white;
+		
+    }
+    </style>
+</head>
+<body>
+    <!-- Sol üst köşe logo -->
+    <div class="logo-left">
+        <img src="static/tarlamcepte_logo.png" alt="TarlamCepte Logo">
+    </div>
+
+    <!-- Sağ üst köşe logo -->
+    <div class="logo-right">
+        <img src="static/turktraktor_logo.png" alt="TürkTraktör Logo">
+    </div>
+    <div class="container">
+        <h1 class="text-center mb-4">TarlamCepte Anket Analizi</h1>
+
+        <!-- Filters -->
+        <div class="card p-4">
+            <h5>Filtreler</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="filter-question" class="form-label">Soruyu Seçin</label>
+                    <select id="filter-question" class="form-select"></select>
+                </div>
+                <div class="col-md-4">
+                    <label for="filter-answer" class="form-label">Keyword olarak Filtrele</label>
+                    <input id="filter-answer" class="form-control" placeholder="Enter answer keyword">
+                </div>
+                <div class="col-md-4">
+                    <button id="apply-filters" class="btn btn-primary mt-4">Filtreyi Uygula</button>
+                </div>
+            </div>
+        </div>
+
+		<!-- Data Table -->
+		<div class="card mt-5">
+			<div class="card-header">
+				<h5>
+					<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#dataTableCollapse" aria-expanded="true" aria-controls="dataTableCollapse">
+						Data Table
+					</button>
+
+				</h5>
+			</div>
+			<div id="dataTableCollapse" class="collapse show">
+				<div class="card-body">
+					<div class="table-container">
+						<table class="table table-striped">
+							<thead>
+								<tr>
+									<th>Participant</th>
+									<th>Question</th>
+									<th>Answer</th>
+								</tr>
+							</thead>
+							<tbody id="data-table-body"></tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+<!-- Production Analysis Table -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>
+            <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#productionAnalysis" aria-expanded="true" aria-controls="productionAnalysis">
+                Anket Analizi
+            </button>
+        </h5>
+    </div>
+    <div id="productionAnalysis" class="collapse show">
+        <div class="card-body">
+            <div class="table-container">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">Region</th>
+                            <th colspan="4">Fruit Production</th>
+                            <th colspan="4">Vegetable Production</th>
+                            <th colspan="4">Cereal Production</th>
+                            <th colspan="2">Livestock</th>
+                        </tr>
+                        <tr>
+                            <th>Small Scale</th>
+                            <th>Medium Scale</th>
+                            <th>Large Scale</th>
+                            <th>Total (%)</th>
+                            <th>Small Scale</th>
+                            <th>Medium Scale</th>
+                            <th>Large Scale</th>
+                            <th>Total (%)</th>
+                            <th>Small Scale</th>
+                            <th>Medium Scale</th>
+                            <th>Large Scale</th>
+                            <th>Total (%)</th>
+                            <th>No Scale</th>
+                            <th>Total (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="production-analysis-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+	
+	
+<!--  -->
+<div class="card mt-4 p-4">
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>
+            <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#olcekdagilimtablo" aria-expanded="true" aria-controls="olcekdagilimtablo">
+                Örneklem Hesabı
+            </button>
+        </h5>
+    </div>	
+	    <div id="olcekdagilimtablo" class="collapse show">
+
+<div class="card mt-4 p-4">
+    <h3>Ölçek Dağılımı (Bölge Bazında)</h3>
+    <p>Her üretim türü için bölgesel yüzdelik değerleri ve ölçek dağılımlarını girin.</p>	
+<table class="table table-bordered text-center">
+    <thead>
+        <tr>
+            <th>Region</th>
+            <th>Points</th>
+            <th>Weight (%)</th>
+            <th>People</th>
+        </tr>
+    </thead>
+    <tbody id="region-data">
+        <!-- Dinamik olarak doldurulacak -->
+    </tbody>
+</table>
+</div>
+    <div class="container mt-4">
+        <!-- Örneklem Hesaplama Butonu -->
+        <button id="calculate-sample" class="btn btn-primary mt-4">Örneklem Hesapla</button>
+    </div>
+	
+
+        <!-- Modal for Sample Size Calculation -->
+        <div class="modal fade" id="sampleSizeModal" tabindex="-1" aria-labelledby="sampleSizeModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="sampleSizeModalLabel">Örneklem Hesapla</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="sampleSizeForm">
+<div class="mb-3">
+    <label for="confidenceLevel">Güven düzeyi (Z)</label>
+    <input id="confidenceLevel" class="form-control" type="number" value="0.7" step="0.01">
+    <span id="confidenceLevelPercent">(75.8%)</span>
+</div>
+<div class="mb-3">
+    <label for="successRate" class="form-label">Tahmini başarı oranı (p)</label>
+    <input type="number" step="0.01" class="form-control" id="successRate" value="0.5">
+    <span id="successRatePercent" class="text-muted">(%50)</span>
+</div>
+<div class="mb-3">
+    <label for="marginOfError" class="form-label">Hata Payı (e)</label>
+    <input type="number" step="0.01" class="form-control" id="marginOfError" value="0.05">
+    <span id="marginOfErrorPercent" class="text-muted">(%5)</span>
+</div>
+
+
+                        </form>
+                        <div class="alert alert-info mt-4">
+<strong>Formül Açıklaması:</strong><br>
+Örneklem büyüklüğü formülü şu şekilde hesaplanır:
+<code>n = (Z^2 * p * (1 - p)) / e^2</code>, bunlar:<br>
+<ul>
+    <li><strong>Z:</strong> Güven düzeyi (örn., 0.7).</li>
+    <li><strong>p:</strong> Tahmini başarı oranı (örn., 0.5).</li>
+    <li>( p *(1 - p) ), popülasyondaki çeşitliliği temsil eder. ( p ) değeri **0.5** olduğunda çeşitlilik maksimum olur.</li>
+    <li><strong>e:</strong> Hata Payı (örn., 0.05).</li>
+</ul>
+
+<h5>( p ) Değeri ile Çeşitlilik İlişkisi</h5>
+<table class="table table-bordered text-center">
+    <thead>
+        <tr>
+            <th>( p )</th>
+            <th>Başarı Oranı (%)</th>
+            <th>Çeşitlilik (( p * (1 - p))) (%)</th>
+            <th>Açıklama</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>0.1</td>
+            <td>%10</td>
+            <td>%9.0</td>
+            <td>Başarı oranı düşük, popülasyon homojen.</td>
+        </tr>
+        <tr>
+            <td>0.3</td>
+            <td>%30</td>
+            <td>%21.0</td>
+            <td>Başarı ve başarısızlık oranları daha dengeli.</td>
+        </tr>
+        <tr>
+            <td>0.5</td>
+            <td>%50</td>
+            <td>%25.0</td>
+            <td>Başarı ve başarısızlık oranları eşit, çeşitlilik maksimum.</td>
+        </tr>
+        <tr>
+            <td>0.7</td>
+            <td>%70</td>
+            <td>%21.0</td>
+            <td>Başarı oranı yüksek, popülasyon homojenleşmeye başlıyor.</td>
+        </tr>
+        <tr>
+            <td>0.9</td>
+            <td>%90</td>
+            <td>%9.0</td>
+            <td>Başarı oranı çok yüksek, popülasyon oldukça homojen.</td>
+        </tr>
+    </tbody>
+</table>
+
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" id="calculateSampleButton">Calculate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+<div class="container mt-4">
+    <h3>Ölçek Dağılımı (Bölge Bazında)</h3>
+    <p>Her üretim türü için bölgesel yüzdelik değerleri ve ölçek dağılımlarını girin.</p>
+
+    <!-- Bölgesel Üretim Yüzdeleri Tablosu -->
+    <table class="table table-bordered text-center">
+        <thead>
+            <tr>
+                <th>Region</th>
+                <th>Meyve Üretimi (%)</th>
+                <th>Sebze Üretimi (%)</th>
+                <th>Tahıl Üretimi (%)</th>
+                <th>Hayvancılık (%)</th>
+            </tr>
+        </thead>
+        <tbody id="region-percentages">
+            <tr>
+                <td>Doğu Anadolu</td>
+                <td><input type="number" class="form-control production-input" data-region="Doğu Anadolu" data-type="fruit" value="11"></td>
+                <td><input type="number" class="form-control production-input" data-region="Doğu Anadolu" data-type="vegetable" value="61"></td>
+                <td><input type="number" class="form-control production-input" data-region="Doğu Anadolu" data-type="cereal" value="10"></td>
+                <td><input type="number" class="form-control production-input" data-region="Doğu Anadolu" data-type="livestock" value="18"></td>
+            </tr>
+            <tr>
+                <td>Güneydoğu Anadolu</td>
+                <td><input type="number" class="form-control production-input" data-region="Güneydoğu Anadolu" data-type="fruit" value="14"></td>
+                <td><input type="number" class="form-control production-input" data-region="Güneydoğu Anadolu" data-type="vegetable" value="70"></td>
+                <td><input type="number" class="form-control production-input" data-region="Güneydoğu Anadolu" data-type="cereal" value="5"></td>
+                <td><input type="number" class="form-control production-input" data-region="Güneydoğu Anadolu" data-type="livestock" value="11"></td>
+            </tr>
+                <td>İç Anadolu</td>
+                <td><input type="number" class="form-control production-input" data-region="İç Anadolu" data-type="fruit" value="29"></td>
+                <td><input type="number" class="form-control production-input" data-region="İç Anadolu" data-type="vegetable" value="51"></td>
+                <td><input type="number" class="form-control production-input" data-region="İç Anadolu" data-type="cereal" value="5"></td>
+                <td><input type="number" class="form-control production-input" data-region="İç Anadolu" data-type="livestock" value="15"></td>
+            </tr>
+                <td>Akdeniz</td>
+                <td><input type="number" class="form-control production-input" data-region="Akdeniz" data-type="fruit" value="58"></td>
+                <td><input type="number" class="form-control production-input" data-region="Akdeniz" data-type="vegetable" value="39"></td>
+                <td><input type="number" class="form-control production-input" data-region="Akdeniz" data-type="cereal" value="0"></td>
+                <td><input type="number" class="form-control production-input" data-region="Akdeniz" data-type="livestock" value="3"></td>
+            </tr>
+            </tr>
+                <td>Ege</td>
+                <td><input type="number" class="form-control production-input" data-region="Ege" data-type="fruit" value="47"></td>
+                <td><input type="number" class="form-control production-input" data-region="Ege" data-type="vegetable" value="45"></td>
+                <td><input type="number" class="form-control production-input" data-region="Ege" data-type="cereal" value="2"></td>
+                <td><input type="number" class="form-control production-input" data-region="Ege" data-type="livestock" value="7"></td>
+            </tr>
+            </tr>
+                <td>Karadeniz</td>
+                <td><input type="number" class="form-control production-input" data-region="Karadeniz" data-type="fruit" value="46"></td>
+                <td><input type="number" class="form-control production-input" data-region="Karadeniz" data-type="vegetable" value="44"></td>
+                <td><input type="number" class="form-control production-input" data-region="Karadeniz" data-type="cereal" value="2"></td>
+                <td><input type="number" class="form-control production-input" data-region="Karadeniz" data-type="livestock" value="7"></td>
+            </tr>
+            </tr>
+                <td>Marmara</td>
+                <td><input type="number" class="form-control production-input" data-region="Marmara" data-type="fruit" value="47"></td>
+                <td><input type="number" class="form-control production-input" data-region="Marmara" data-type="vegetable" value="45"></td>
+                <td><input type="number" class="form-control production-input" data-region="Marmara" data-type="cereal" value="2"></td>
+                <td><input type="number" class="form-control production-input" data-region="Marmara" data-type="livestock" value="7"></td>
+            </tr>
+            <!-- Diğer bölgeler için de aynı şekilde -->
+        </tbody>
+    </table>
+
+    <!-- Ölçek Dağılımı Tablosu -->
+    <h4>Ölçek Dağılımları</h4>
+    <table class="table table-bordered text-center">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Küçük (%)</th>
+                <th>Orta (%)</th>
+                <th>Büyük (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Meyve</td>
+                <td><input type="number" class="form-control scale-input" data-type="fruit" data-scale="small" value="45"></td>
+                <td><input type="number" class="form-control scale-input" data-type="fruit" data-scale="medium" value="33"></td>
+                <td><input type="number" class="form-control scale-input" data-type="fruit" data-scale="large" value="22"></td>
+            </tr>
+            <tr>
+                <td>Sebze</td>
+                <td><input type="number" class="form-control scale-input" data-type="vegetable" data-scale="small" value="55"></td>
+                <td><input type="number" class="form-control scale-input" data-type="vegetable" data-scale="medium" value="29"></td>
+                <td><input type="number" class="form-control scale-input" data-type="vegetable" data-scale="large" value="16"></td>
+            </tr>
+            <tr>
+                <td>Tahıl</td>
+                <td><input type="number" class="form-control scale-input" data-type="cereal" data-scale="small" value="23"></td>
+                <td><input type="number" class="form-control scale-input" data-type="cereal" data-scale="medium" value="25"></td>
+                <td><input type="number" class="form-control scale-input" data-type="cereal" data-scale="large" value="40"></td>
+            </tr>
+            <tr>
+                <td>Hayvancılık</td>
+                <td><input type="number" class="form-control scale-input" data-type="livestock" data-scale="small" value="100"></td>
+                <td><input type="number" class="form-control scale-input" data-type="livestock" data-scale="medium" value="0"></td>
+                <td><input type="number" class="form-control scale-input" data-type="livestock" data-scale="large" value="0"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Sonuçlar Tablosu -->
+    <h4>Sonuçlar</h4>
+    <table class="table table-bordered text-center">
+        <thead>
+            <tr>
+                <th>Region</th>
+                <th colspan="3">Meyve</th>
+                <th colspan="3">Sebze</th>
+                <th colspan="3">Tahıl</th>
+                <th>Hayvancılık</th>
+            </tr>
+        </thead>
+        <tbody id="results">
+            <!-- Dinamik olarak doldurulacak -->
+        </tbody>
+    </table>
+</div>
+</div>
+    </div>	
+
+
+        <!-- Dynamic Chart -->
+        <div class="card mt-4 p-4">
+            <h5>Dynamic Chart</h5>
+            <canvas id="dynamic-chart"></canvas>
+        </div>
+
+        <!-- Interactive Map -->
+        <div class="card mt-4 p-4">
+            <h5>Interactive Map</h5>
+            <div id="map"></div>
+        </div>
+
+        <!-- Export Data -->
+        <div class="card mt-4 p-4 text-center">
+            <button id="export-data" class="btn btn-success">Anket Sonuçlarını İndir</button>
+        </div>
+    </div>
+	        <!-- Export Data -->
+        <div class="card mt-4 p-4 text-center">
+            <button id="export-data2" class="btn btn-success">Tabloları İndir</button>
+        </div>
+    </div>
+	
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Tabloyu doldur
+    initializeDistributionTable();
+
+
+
+    // 2. Hesaplama için event listener ekle
+    document.getElementById("calculate-sample").addEventListener("click", () => {
+        calculateResults();
+    });
+});
+function calculateResults() {
+    const regions = ["Doğu Anadolu", "Güneydoğu Anadolu", "İç Anadolu", "Akdeniz", "Ege", "Karadeniz", "Marmara"];
+    const scaleInputs = document.querySelectorAll(".scale-input");
+    const productionInputs = document.querySelectorAll(".production-input");
+
+    // Bölgesel kişi sayılarını getir
+    const regionPeople = {};
+    document.querySelectorAll("#region-data tr").forEach(row => {
+        const region = row.querySelector("td").textContent;
+        const people = parseInt(row.querySelector(".people-cell").textContent, 10) || 0;
+        regionPeople[region] = people;
+    });
+
+    // Ölçek dağılımlarını al
+    const scaleData = {
+        fruit: { small: 0, medium: 0, large: 0 },
+        vegetable: { small: 0, medium: 0, large: 0 },
+        cereal: { small: 0, medium: 0, large: 0 },
+        livestock: { small: 0, medium: 0, large: 0 },
+    };
+
+    scaleInputs.forEach(input => {
+        const type = input.dataset.type;
+        const scale = input.dataset.scale;
+        scaleData[type][scale] = parseFloat(input.value) || 0;
+    });
+
+    // Bölgesel yüzdelikleri al
+    const regionalData = {};
+    productionInputs.forEach(input => {
+        const region = input.dataset.region;
+        const type = input.dataset.type;
+
+        if (!regionalData[region]) {
+            regionalData[region] = { fruit: 0, vegetable: 0, cereal: 0, livestock: 0 };
+        }
+        regionalData[region][type] = parseFloat(input.value) || 0;
+    });
+
+    // Sonuçları hesapla ve tabloyu güncelle
+    const resultsTable = document.getElementById("results");
+    resultsTable.innerHTML = ""; // Önceki sonuçları temizle
+
+    regions.forEach(region => {
+        const people = regionPeople[region] || 0; // Bölgesel kişi sayısı
+		console.log(`Region: ${region}, People: ${people}`);
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${region}</td>
+            ${generateResultCells(region, "fruit", regionalData, scaleData, people)}
+            ${generateResultCells(region, "vegetable", regionalData, scaleData, people)}
+            ${generateResultCells(region, "cereal", regionalData, scaleData, people)}
+            <td>${calculateLivestock(region, regionalData, people)}</td>
+        `;
+        resultsTable.appendChild(row);
+    });
+}
+
+function generateResultCells(region, type, regionalData, scaleData, people) {
+    const regionalPercent = regionalData[region][type];
+    const small = Math.round((regionalPercent * scaleData[type].small * people) / 10000);
+    const medium = Math.round((regionalPercent * scaleData[type].medium * people) / 10000);
+    const large = Math.round((regionalPercent * scaleData[type].large * people) / 10000);
+
+    return `
+        <td>${small}</td>
+        <td>${medium}</td>
+        <td>${large}</td>
+    `;
+}
+
+function calculateLivestock(region, regionalData, people) {
+    const livestockPercent = regionalData[region].livestock || 0;
+    return Math.round((livestockPercent * people) / 100);
+}
+
+</script>
+
+<script>
+// Math.erf fonksiyonunu tanımlıyoruz
+Math.erf = function (x) {
+    const a1 = 0.254829592,
+        a2 = -0.284496736,
+        a3 = 1.421413741,
+        a4 = -1.453152027,
+        a5 = 1.061405429;
+    const p = 0.3275911;
+
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+
+    const t = 1.0 / (1.0 + p * x);
+    const y =
+        1.0 -
+        (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) *
+            t *
+            Math.exp(-x * x);
+
+    return sign * y;
+};
+
+// Giriş alanlarını ve yüzdelik gösterim elemanlarını seçin
+const confidenceLevelInput = document.getElementById("confidenceLevel");
+const confidenceLevelPercent = document.getElementById("confidenceLevelPercent");
+
+const successRateInput = document.getElementById("successRate");
+const successRatePercent = document.getElementById("successRatePercent");
+
+const marginOfErrorInput = document.getElementById("marginOfError");
+const marginOfErrorPercent = document.getElementById("marginOfErrorPercent");
+
+// Z değeri için yüzdelik hesaplama fonksiyonu
+function calculateZPercent(z) {
+    // Z değeri negatifse yüzdelik 0 olarak döner
+    if (z <= 0) return 0;
+
+    // Z değeri için standart normal dağılım fonksiyonu
+    const phi = (1 + Math.erf(z / Math.sqrt(2))) / 2; // CDF
+    return phi * 100; // Yüzdelik olarak döndür
+}
+
+
+
+// Dinamik olarak yüzdelik değeri güncelleyen fonksiyon
+function updatePercent(input, span) {
+    const value = parseFloat(input.value) || 0;
+    span.textContent = `(${(value * 100).toFixed(0)}%)`;
+}
+
+// Z değeri için özel güncelleme
+function updateConfidencePercent() {
+    const z = parseFloat(confidenceLevelInput.value) || 0;
+    const percent = calculateZPercent(z).toFixed(1); // Yüzdeyi hesapla
+    confidenceLevelPercent.textContent = `(${percent}%)`;
+}
+
+// Her giriş alanı için "input" olayını dinleyin
+confidenceLevelInput.addEventListener("input", updateConfidencePercent);
+successRateInput.addEventListener("input", () => updatePercent(successRateInput, successRatePercent));
+marginOfErrorInput.addEventListener("input", () => updatePercent(marginOfErrorInput, marginOfErrorPercent));
+
+// İlk değerleri ayarla
+updateConfidencePercent();
+updatePercent(successRateInput, successRatePercent);
+updatePercent(marginOfErrorInput, marginOfErrorPercent);
+</script>
+
+<script>
+        const defaultPoints = {
+            "Doğu Anadolu": 2.75,
+            "Güneydoğu Anadolu": 2.43,
+            "İç Anadolu": 2.25,
+            "Akdeniz": 1.81,
+            "Ege": 1.70,
+            "Karadeniz": 0.00,
+            "Marmara": 0.47
+        };
+        let totalSampleSize = 49;
+		
+		document.getElementById("calculateSampleButton").addEventListener("click", () => {
+    const Z = parseFloat(document.getElementById("confidenceLevel").value);
+    const p = parseFloat(document.getElementById("successRate").value);
+    const e = parseFloat(document.getElementById("marginOfError").value);
+
+    // Örneklem büyüklüğünü hesapla
+    const sampleSize = Math.ceil((Math.pow(Z, 2) * p * (1 - p)) / Math.pow(e, 2));
+    totalSampleSize = sampleSize; // Global değişkeni güncelle
+
+    // Modalı kapat
+    const modal = bootstrap.Modal.getInstance(document.getElementById("sampleSizeModal"));
+    modal.hide();
+
+    // Kullanıcıya başarı mesajı göster
+    Swal.fire({
+        title: "Sample Size Calculated!",
+        text: `Sample size of ${sampleSize} people has been calculated successfully!`,
+        icon: "success",
+        confirmButtonText: "OK"
+    });
+
+    // Örneklem değişikliğine göre tabloyu güncelle
+    initializeDistributionTable();
+});
+
+function initializeDistributionTable() {
+    const tableBody = document.getElementById("region-data");
+    tableBody.innerHTML = ""; // Tabloyu temizle
+
+    const defaultPoints = {
+        "Doğu Anadolu": 2.75,
+        "Güneydoğu Anadolu": 2.43,
+        "İç Anadolu": 2.25,
+        "Akdeniz": 1.81,
+        "Ege": 1.70,
+        "Karadeniz": 0.00,
+        "Marmara": 0.47
+    };
+
+    const totalPoints = Object.values(defaultPoints).reduce((sum, val) => sum + val, 0);
+
+    Object.entries(defaultPoints).forEach(([region, point]) => {
+        const weight = ((point / totalPoints) * 100).toFixed(2); // Yüzdelik ağırlık
+        const people = Math.round((weight / 100) * totalSampleSize); // Güncellenmiş örneklem büyüklüğüyle kişi sayısı
+
+        const row = `
+            <tr>
+                <td>${region}</td>
+                <td><input type="number" class="form-control point-input" data-region="${region}" value="${point}" step="0.01"></td>
+                <td class="weight-cell">${weight}%</td>
+                <td class="people-cell">${people}</td>
+            </tr>
+        `;
+        tableBody.insertAdjacentHTML("beforeend", row);
+
+    });
+
+    // Kullanıcı inputlarını dinleyerek güncelle
+    document.querySelectorAll(".point-input").forEach(input => {
+        input.addEventListener("input", recalculateDistribution);
+
+    });
+
+
+}
+
+
+
+
+function recalculateDistribution() {
+    const pointInputs = document.querySelectorAll(".point-input");
+    let totalPoints = Array.from(pointInputs).reduce((sum, input) => sum + parseFloat(input.value || 0), 0);
+
+    pointInputs.forEach(input => {
+        const region = input.dataset.region;
+        const point = parseFloat(input.value || 0);
+        const weight = ((point / totalPoints) * 100).toFixed(2);
+        const people = Math.round((weight / 100) * totalSampleSize);
+
+        const row = input.closest("tr");
+        row.querySelector(".weight-cell").textContent = `${weight}%`;
+        row.querySelector(".people-cell").textContent = people;
+
+        // Dinamik yüzdeyi güncelle
+        const percentageElement = row.querySelector(`.dynamic-percentage[data-region="${region}"]`);
+        if (percentageElement) {
+            percentageElement.textContent = `(${weight}%)`;
+        }
+    });
+}
+
+
+        document.getElementById("calculate-sample").addEventListener("click", () => {
+            const modal = new bootstrap.Modal(document.getElementById("sampleSizeModal"));
+            modal.show();
+        });
+
+        document.getElementById("calculateSampleButton").addEventListener("click", () => {
+            const Z = parseFloat(document.getElementById("confidenceLevel").value);
+            const p = parseFloat(document.getElementById("successRate").value);
+            const e = parseFloat(document.getElementById("marginOfError").value);
+
+            const sampleSize = Math.ceil((Math.pow(Z, 2) * p * (1 - p)) / Math.pow(e, 2));
+            totalSampleSize = sampleSize;
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById("sampleSizeModal"));
+            modal.hide();
+
+            Swal.fire({
+                title: "Sample Size Calculated!",
+                text: `Sample size of ${sampleSize} people has been calculated successfully!`,
+                icon: "success",
+                confirmButtonText: "OK"
+            });
+
+
+        });
+
+        document.getElementById("region-data").addEventListener("input", event => {
+            if (event.target.classList.contains("point-input")) {
+                recalculateDistribution();
+            }
+        });
+
+document.addEventListener("DOMContentLoaded", () => {
+    const saveButton = document.getElementById("save-distribution");
+    if (saveButton) {
+        saveButton.addEventListener("click", () => {
+            const distributionData = [];
+            const rows = document.querySelectorAll("#region-data tr");
+
+            rows.forEach(row => {
+                const region = row.querySelector("td").textContent;
+                const point = parseFloat(row.querySelector(".point-input").value);
+                const weight = row.querySelector(".weight-cell").textContent;
+                const people = row.querySelector(".people-cell").textContent;
+
+                distributionData.push({ region, point, weight, people });
+            });
+
+            console.log("Saved Distribution Data:", distributionData);
+
+            Swal.fire({
+                title: "Success!",
+                text: "Regional distribution data has been saved successfully.",
+                icon: "success",
+                confirmButtonText: "OK"
+            });
+        });
+    } else {
+        console.error('Save button with id "save-distribution" not found.');
+    }
+});
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    // İlk olarak tabloyu doldur
+    initializeDistributionTable();
+
+    // Daha sonra sonuç hesaplamayı hazırla
+    document.getElementById("calculate-sample").addEventListener("click", () => {
+        calculateResults();
+    });
+});
+
+
+    </script>
+
+	
+    <script>
+        let dynamicChart;
+        let map;
+        let geoJsonLayer;
+
+        // Initialize Map
+        function initializeMap() {
+            map = L.map('map').setView([39.9208, 32.8541], 6); // Default to Turkey
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Update Map
+        function updateMap(cityData) {
+            if (geoJsonLayer) {
+                map.removeLayer(geoJsonLayer);
+            }
+
+            fetch('/static/geojson/tr-cities.json')
+                .then(response => response.json())
+                .then(geoData => {
+                    geoJsonLayer = L.geoJSON(geoData, {
+                        style: feature => {
+                            const cityName = feature.properties.name;
+                            const count = cityData.find(city => city.City === cityName)?.count || 0;
+                            return {
+                                fillColor: getColor(count),
+                                weight: 1,
+                                color: 'white',
+                                fillOpacity: 0.7
+                            };
+                        },
+                        onEachFeature: (feature, layer) => {
+                            const cityName = feature.properties.name;
+                            const count = cityData.find(city => city.City === cityName)?.count || 0;
+                            layer.bindPopup(`<b>${cityName}</b><br>Responses: ${count}`);
+                        }
+                    }).addTo(map);
+                });
+        }
+
+        // Color scale for map
+        function getColor(count) {
+            return count > 50 ? '#800026' :
+                   count > 20 ? '#BD0026' :
+                   count > 10 ? '#E31A1C' :
+                   count > 5  ? '#FC4E2A' :
+                   count > 0  ? '#FD8D3C' :
+                                '#FFEDA0';
+        }
+
+        // Update Chart
+        function updateChart(data, question) {
+            const ctx = document.getElementById('dynamic-chart').getContext('2d');
+            const labels = [...new Set(data.map(row => row.Answer))];
+            const values = labels.map(label => data.filter(row => row.Answer === label).length);
+
+            if (dynamicChart) {
+                dynamicChart.destroy();
+            }
+
+            dynamicChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Distribution for ${question}`,
+                        data: values,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    onClick: async (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const selectedLabel = labels[index];
+                            const cityData = await fetchCityData(selectedLabel);
+                            updateMap(cityData);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch City Data
+        async function fetchCityData(filter = "") {
+            const question = document.getElementById('filter-question').value;
+            const answer = filter || document.getElementById('filter-answer').value;
+
+            const url = `/api/city-data?question=${encodeURIComponent(question)}&filter=${encodeURIComponent(answer)}`;
+            const response = await fetch(url);
+            return response.ok ? await response.json() : [];
+        }
+
+        // Fetch Production Data
+        async function fetchTotalData() {
+            const response = await fetch('/api/production-data');
+            const data = await response.json();
+            return data;
+        }
+
+        // Apply Filters
+        async function applyFilters() {
+            const question = document.getElementById('filter-question').value;
+            const answer = document.getElementById('filter-answer').value;
+
+            const dataUrl = `/api/data?question=${encodeURIComponent(question)}&filter=${encodeURIComponent(answer)}`;
+            const dataResponse = await fetch(dataUrl);
+            const filteredData = await dataResponse.json();
+
+            const cityData = await fetchCityData();
+            const productionData = await fetchTotalData();
+
+            updateChart(filteredData, question);
+            updateMap(cityData);
+            updateTable(filteredData);
+            updateProductionAnalysisTable(productionData);
+
+
+
+        }
+
+        document.getElementById('apply-filters').addEventListener('click', applyFilters);
+
+        // Load questions dropdown
+        async function loadQuestions() {
+            const response = await fetch('/api/questions');
+            const questions = await response.json();
+            const questionDropdown = document.getElementById('filter-question');
+            questions.forEach(question => {
+                const option = document.createElement('option');
+                option.value = question;
+                option.textContent = question;
+                questionDropdown.appendChild(option);
+            });
+        }
+
+        // Update Data Table
+        function updateTable(data) {
+            const tableBody = document.getElementById('data-table-body');
+            tableBody.innerHTML = '';
+
+            if (!data.length) {
+                tableBody.innerHTML = '<tr><td colspan="3">No data available</td></tr>';
+                return;
+            }
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Participant}</td>
+                    <td>${row.Question}</td>
+                    <td>${row.Answer}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+		
+
+function updateProductionAnalysisTable(data) {
+    const tableBody = document.getElementById('production-analysis-table-body');
+    tableBody.innerHTML = ''; // Tabloyu temizle
+
+    const totalCounts = {
+        fruit: 0,
+        vegetable: 0,
+        cereal: 0,
+        livestock: 0,
+    };
+
+    // Tüm bölgeler için toplamları hesapla
+    data.forEach(row => {
+        if (row.ProductionType === 'Fruit Production') {
+            totalCounts.fruit += row.Count || 0;
+        } else if (row.ProductionType === 'Vegetable Production') {
+            totalCounts.vegetable += row.Count || 0;
+        } else if (row.ProductionType === 'Cereal Production') {
+            totalCounts.cereal += row.Count || 0;
+        } else if (row.ProductionType === 'Livestock') {
+            totalCounts.livestock += row.Count || 0;
+        }
+    });
+
+    const groupedData = data.reduce((acc, row) => {
+        const region = row.Region || 'Unknown';
+        if (!acc[region]) acc[region] = {
+            fruit: { small: 0, medium: 0, large: 0 },
+            vegetable: { small: 0, medium: 0, large: 0 },
+            cereal: { small: 0, medium: 0, large: 0 },
+            livestock: { noScale: 0 },
+        };
+
+        if (row.ProductionType === 'Fruit Production') {
+            if (row.Scale === 'Small Scale') acc[region].fruit.small += row.Count || 0;
+            if (row.Scale === 'Medium Scale') acc[region].fruit.medium += row.Count || 0;
+            if (row.Scale === 'Large Scale') acc[region].fruit.large += row.Count || 0;
+        }
+        if (row.ProductionType === 'Vegetable Production') {
+            if (row.Scale === 'Small Scale') acc[region].vegetable.small += row.Count || 0;
+            if (row.Scale === 'Medium Scale') acc[region].vegetable.medium += row.Count || 0;
+            if (row.Scale === 'Large Scale') acc[region].vegetable.large += row.Count || 0;
+        }
+        if (row.ProductionType === 'Cereal Production') {
+            if (row.Scale === 'Small Scale') acc[region].cereal.small += row.Count || 0;
+            if (row.Scale === 'Medium Scale') acc[region].cereal.medium += row.Count || 0;
+            if (row.Scale === 'Large Scale') acc[region].cereal.large += row.Count || 0;
+        }
+        if (row.ProductionType === 'Livestock') {
+            if (row.Scale === 'No Scale') acc[region].livestock.noScale += row.Count || 0;
+        }
+        return acc;
+    }, {});
+
+    // Tabloyu doldur
+    Object.keys(groupedData).forEach(region => {
+        const { fruit, vegetable, cereal, livestock } = groupedData[region];
+        const fruitTotal = fruit.small + fruit.medium + fruit.large;
+        const vegetableTotal = vegetable.small + vegetable.medium + vegetable.large;
+        const cerealTotal = cereal.small + cereal.medium + cereal.large;
+        const livestockTotal = livestock.noScale;
+
+        const fruitPercent = totalCounts.fruit > 0 ? ((fruitTotal / totalCounts.fruit) * 100).toFixed(2) : '0.00';
+        const vegetablePercent = totalCounts.vegetable > 0 ? ((vegetableTotal / totalCounts.vegetable) * 100).toFixed(2) : '0.00';
+        const cerealPercent = totalCounts.cereal > 0 ? ((cerealTotal / totalCounts.cereal) * 100).toFixed(2) : '0.00';
+        const livestockPercent = totalCounts.livestock > 0 ? ((livestockTotal / totalCounts.livestock) * 100).toFixed(2) : '0.00';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${region}</td>
+            <td>${fruit.small}</td>
+            <td>${fruit.medium}</td>
+            <td>${fruit.large}</td>
+            <td>${fruitPercent}%</td>
+            <td>${vegetable.small}</td>
+            <td>${vegetable.medium}</td>
+            <td>${vegetable.large}</td>
+            <td>${vegetablePercent}%</td>
+            <td>${cereal.small}</td>
+            <td>${cereal.medium}</td>
+            <td>${cereal.large}</td>
+            <td>${cerealPercent}%</td>
+            <td>${livestock.noScale}</td>
+            <td>${livestockPercent}%</td>
+        `;
+        tableBody.appendChild(tr);
+    });
+
+}
+
+
+
+        // Export Data Function
+        function exportData() {
+            const selectedQuestion = document.getElementById('filter-question').value;
+            const selectedFilter = document.getElementById('filter-answer').value;
+
+            const url = `/api/production-data?question=${encodeURIComponent(selectedQuestion)}&filter=${encodeURIComponent(selectedFilter)}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const csvData = convertToCSV(data);
+                    downloadCSV(csvData, 'survey_results.csv');
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Convert JSON to CSV
+        function convertToCSV(data) {
+            const headers = Object.keys(data[0] || {});
+            const rows = data.map(row => headers.map(header => row[header] || '').join(','));
+            return [headers.join(','), ...rows].join('\n');
+        }
+
+        // Download CSV
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize map and load initial data
+        initializeMap();
+        loadQuestions();
+    </script>
+<script>
+document.getElementById("export-data2").addEventListener("click", () => {
+    // Tabloları Seç
+    const productionTable = document.querySelector("#productionAnalysis");
+    const resultsTable = document.querySelector("#results");
+
+    if (!productionTable || !resultsTable) {
+        alert("Tablolar bulunamadı!");
+        return;
+    }
+
+    // Tabloyu Sheet Formatına Dönüştür
+    const productionSheet = XLSX.utils.table_to_sheet(productionTable);
+    const resultsSheet = XLSX.utils.table_to_sheet(resultsTable);
+
+    // Biçimlendirme: Farklılıkları Vurgula
+    highlightDifferencesInExcel(productionTable, resultsTable, productionSheet, resultsSheet);
+
+    // Çalışma Kitabı Oluştur
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, productionSheet, "Production Analysis");
+    XLSX.utils.book_append_sheet(workbook, resultsSheet, "Results");
+
+    // Excel Dosyasını İndir
+    XLSX.writeFile(workbook, "Comparison_Report.xlsx");
+});
+
+function highlightDifferencesInExcel(productionTable, resultsTable, productionSheet, resultsSheet) {
+    // Tabloların Satırlarını ve Hücrelerini Okuma
+    const productionRows = productionTable.querySelectorAll("tbody tr");
+    const resultsRows = resultsTable.querySelectorAll("tbody tr");
+
+    const productionHeaders = Array.from(productionTable.querySelectorAll("thead th")).map(header => header.textContent.trim());
+    const resultsHeaders = Array.from(resultsTable.querySelectorAll("thead th")).map(header => header.textContent.trim());
+
+    // Sütun Haritalaması (Eşleşme Yapabilmek İçin)
+    const columnMapping = {
+        "Fruit Production": "Meyve",
+        "Vegetable Production": "Sebze",
+        "Cereal Production": "Tahıl",
+        "Livestock": "Hayvancılık"
+    };
+
+    // Satırları Bölge Bazında Eşleştir
+    productionRows.forEach((prodRow, rowIndex) => {
+        const prodRegion = prodRow.querySelector("td").textContent.trim();
+        const resultRow = Array.from(resultsRows).find(row => row.querySelector("td").textContent.trim() === prodRegion);
+
+        if (!resultRow) {
+            return; // Bölge eşleşmiyorsa geç
+        }
+
+        // Her Kolon İçin Karşılaştırma
+        Object.entries(columnMapping).forEach(([prodKey, resultKey]) => {
+            const prodColIndex = productionHeaders.indexOf(prodKey) + 1; // Başlıklar sıfırdan başlıyor
+            const resultColIndex = resultsHeaders.indexOf(resultKey) + 1;
+
+            if (prodColIndex > 0 && resultColIndex > 0) {
+                const prodValue = parseFloat(prodRow.children[prodColIndex]?.textContent.trim()) || 0;
+                const resultValue = parseFloat(resultRow.children[resultColIndex]?.textContent.trim()) || 0;
+
+                if (prodValue !== resultValue) {
+                    const prodCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: prodColIndex });
+                    const resultCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: resultColIndex });
+
+                    if (prodValue > resultValue) {
+                        productionSheet[prodCell].s = { fill: { fgColor: { rgb: "FFCCCC" } } }; // Kırmızı
+                        resultsSheet[resultCell].s = { fill: { fgColor: { rgb: "FFCCCC" } } }; // Kırmızı
+                    } else {
+                        productionSheet[prodCell].s = { fill: { fgColor: { rgb: "CCFFCC" } } }; // Yeşil
+                        resultsSheet[resultCell].s = { fill: { fgColor: { rgb: "CCFFCC" } } }; // Yeşil
+                    }
+                }
+            }
+        });
+    });
+}
+</script>
+<script>
+document.getElementById('export-data').addEventListener('click', () => {
+    window.location.href = '/api/export-data';
+});
+</script>
+    <script>
+        function closeCard() {
+            document.querySelector('.card').style.display = 'none';
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+</body>
+</html>
